@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confirm your FarmStand email</title>
+<style>
+  :root { --green:#2D5A1B; --cream:#FAFAF5; --border:#DDE8D0; --muted:#6B7C6B; --red:#C0392B; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:var(--cream); padding:24px;
+         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .card { background:#fff; border:1px solid var(--border); border-radius:16px; padding:32px;
+          width:100%; max-width:420px; text-align:center;
+          box-shadow:0 2px 12px rgba(0,0,0,.06); }
+  .icon { font-size:52px; line-height:1; margin-bottom:12px; }
+  h1 { margin:0 0 8px; font-size:22px; color:var(--green); }
+  p { margin:0 0 8px; color:var(--muted); font-size:15px; line-height:1.55; }
+  .err { color:var(--red); }
+  .btn { display:inline-block; margin-top:22px; padding:14px 26px; font-size:16px;
+         font-weight:700; color:#fff; background:var(--green); border-radius:12px;
+         text-decoration:none; }
+  .hint { margin-top:18px; font-size:13px; color:#999; }
+  .hide { display:none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon" id="icon">🌽</div>
+  <h1 id="heading">Confirming your email…</h1>
+  <p id="message">One moment.</p>
+  <a class="btn hide" id="openapp" href="farmstand://">Open FarmStand</a>
+  <p class="hint hide" id="hint">You can close this page once the app is open.</p>
+</div>
+
+<script>
+  const icon = document.getElementById('icon');
+  const heading = document.getElementById('heading');
+  const message = document.getElementById('message');
+  const openapp = document.getElementById('openapp');
+  const hint = document.getElementById('hint');
+
+  // Supabase returns tokens in the fragment; some templates use ?token_hash=.
+  function readParams() {
+    const out = {};
+    const decode = (s) => decodeURIComponent(s.replace(/\+/g, ' '));
+    for (const chunk of [location.hash.slice(1), location.search.slice(1)]) {
+      for (const pair of chunk.split('&')) {
+        if (!pair) continue;
+        const i = pair.indexOf('=');
+        if (i === -1) continue;
+        out[decode(pair.slice(0, i))] = decode(pair.slice(i + 1));
+      }
+    }
+    return out;
+  }
+
+  const p = readParams();
+
+  function show(emoji, title, text, isError) {
+    icon.textContent = emoji;
+    heading.textContent = title;
+    message.textContent = text;
+    message.className = isError ? 'err' : '';
+  }
+
+  if (p.error_description || p.error) {
+    const detail = p.error_description || p.error;
+    const expired = /expired|invalid/i.test(detail);
+    show('⚠️', expired ? 'This link has expired' : 'Something went wrong', detail + '.', true);
+    message.insertAdjacentHTML('afterend',
+      '<p>Open FarmStand and sign up again, or request a new confirmation email.</p>');
+    openapp.classList.remove('hide');
+  } else if (p.access_token || p.token_hash) {
+    // Landing here at all means Supabase already verified the token.
+    show('✅', 'Email confirmed', 'Your FarmStand account is ready. Sign in on the app to get started.');
+    if (location.hash.length > 1) openapp.href = 'farmstand://' + location.hash;
+    openapp.classList.remove('hide');
+    hint.classList.remove('hide');
+  } else {
+    show('📬', 'Check your email',
+         'Open the confirmation link we sent you. If you got here by mistake, you can close this page.');
+    openapp.classList.remove('hide');
+  }
+</script>
+</body>
+</html>
